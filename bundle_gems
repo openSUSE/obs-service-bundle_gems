@@ -19,8 +19,13 @@ require 'logger'
 require 'fileutils'
 require 'optparse'
 
-logger = Logger.new(STDERR)
+logger = Logger.new(STDOUT)
 logger.level = Logger::INFO
+logger.progname = File.basename($PROGRAM_NAME)
+logger.formatter = proc do |severity, datetime, progname, msg|
+  date_format = datetime.strftime('%Y-%m-%d %H:%M:%S')
+  "[#{date_format}] #{severity.ljust(5)} (#{progname}): #{msg}\n"
+end
 
 options = {}
 OptionParser.new do |opts|
@@ -35,30 +40,30 @@ bundled_gems = []
 
 spec = Dir['*.spec'].first
 unless spec
-  puts 'No spec found'
+  logger.fatal 'No spec found'
   exit(1)
 end
 
 gem_file = 'Gemfile'
 unless File.exist?(gem_file)
-  puts 'No Gemfile found'
+  log.fatal 'No Gemfile found'
   exit(1)
 end
-logger.info("Using #{gem_file}")
+logger.info "Using #{gem_file}"
 
 gem_file_lock = 'Gemfile.lock'
 unless File.exist?(gem_file_lock)
-  puts 'No Gemfile.lock found'
+  logger.fatal 'No Gemfile.lock found'
   exit(1)
 end
-logger.info("Using #{gem_file_lock}")
+logger.info "Using #{gem_file_lock}"
 
 logger.info 'Resolving...'
 definition = Bundler::Definition.build('Gemfile', 'Gemfile.lock', nil)
 bundled_gems.concat definition.resolve.to_a.sort_by(&:to_s)
 logger.info "  #{bundled_gems.size} gems..."
 
-logger.info("Updating #{spec}")
+logger.info "Updating #{spec}"
 # Now parse the spec file
 gems_start = false
 new_spec_lines = []
@@ -91,3 +96,4 @@ end
 File.open(File.join(outdir, spec), 'w') do |f|
   f.write(new_spec_lines.join(''))
 end
+logger.info 'DONE'
