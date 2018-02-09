@@ -1,6 +1,8 @@
 
 # bundle_gems (OBS source service)
 
+[![Build Status](https://travis-ci.org/openSUSE/obs-service-bundle_gems.svg?branch=master)](https://travis-ci.org/openSUSE/obs-service-bundle_gems)
+
 This service is useful for Rails and similar applications using a [Bundler]() `Gemfile`.
 
 Configured correctly it will:
