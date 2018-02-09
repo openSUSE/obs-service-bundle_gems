@@ -1,0 +1,119 @@
+#!/usr/bin/env ruby
+#
+# A simple script to update sources in rails app in order to bundle
+# required gems
+#
+# (C) 2018 SUSE LLC
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# See http://www.gnu.org/licenses/gpl-2.0.html for full license text.
+#
+require 'bundler'
+require 'rubygems/package'
+require 'zlib'
+require 'tempfile'
+require 'logger'
+require 'fileutils'
+require 'optparse'
+
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{ARGV[0]} [options]"
+  opts.on('-oDIR', '--outdir=DIR', 'Output Directory') do |v|
+    options[:outdir] = v
+  end
+end.parse!
+
+outdir = options[:outdir] || Dir.pwd
+
+logger = Logger.new(STDERR)
+logger.level = Logger::INFO
+
+TAR_LONGLINK = '././@LongLink'.freeze
+tmpdir = Dir.mktmpdir
+bundled_gems = []
+
+tar_gz_archive = Dir['*.tar.gz'].first
+unless tar_gz_archive
+  puts 'No tarball found'
+  exit(1)
+end
+
+spec = Dir['*.spec'].first
+unless spec
+  puts 'No spec found'
+  exit(1)
+end
+
+begin
+  Gem::Package::TarReader.new(Zlib::GzipReader.open(tar_gz_archive)) do |tar|
+    dest = nil
+    tar.each do |entry|
+      if entry.full_name == TAR_LONGLINK
+        dest = entry.read.strip
+        next
+      end
+      dest ||= entry.full_name
+      if entry.directory?
+        # ignore
+      elsif entry.file?
+        case File.basename(entry.full_name)
+        when /Gemfile/
+          logger.info "Extracting  #{File.basename(entry.full_name)}"
+          dest_filename = File.join(tmpdir, File.basename(entry.full_name))
+          File.open(dest_filename, 'wb') do |f|
+            f.write entry.read
+          end
+        end
+      elsif entry.header.typeflag == '2' # Symlink!
+        # ignore
+      end
+      dest = nil
+    end
+  end
+
+  Dir.chdir(tmpdir) do
+    logger.info 'Resolving...'
+    definition = Bundler::Definition.build('Gemfile', 'Gemfile.lock', nil)
+    bundled_gems.concat definition.resolve.to_a.sort_by(&:to_s)
+  end
+ensure
+  FileUtils.remove_entry tmpdir
+end
+
+# Now parse the spec file
+gem_sources = []
+gems_start = false
+new_spec_lines = []
+File.open(spec, 'r').each_line do |line|
+  if line =~ /^### GEMS START/
+    gems_start = true
+    new_spec_lines.push(line)
+    i = 100
+    bundled_gems.each do |s|
+      new_spec_lines.push("Source#{i}: https://rubygems.org/downloads/#{s.name}-#{s.version}.gem\n")
+      i += 1
+    end
+    new_spec_lines.push("### GEMS END\n")
+    next
+  end
+
+  if line =~ /^### GEMS END/
+    gems_start = false
+    next
+  end
+
+  if line =~ /^Source(.*):/
+    # drop this one
+    next if gems_start
+  end
+
+  new_spec_lines.push(line)
+end
+
+File.open(File.join(outdir, spec), 'w') do |f|
+  f.write(new_spec_lines.join(''))
+end

@@ -1,0 +1,6 @@
+<service name="bundle_gems">
+  <summary>Resolves gem dependencies and adds them to the .spec source list</summary>
+  <description>This service reads the Gemfile from the sources, figures out the whole chain
+  of gem dependencies, and adds them to the source list so that another service like
+  download_files can retrieve them.</description>
+</service>
