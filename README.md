@@ -12,8 +12,15 @@ Configured correctly it will:
 
 # Usage
 
-* You need a tarball first. Either your application is in a tarball, or you create one
-  with [tar_scm]() source service from your application git repository.
+* You need a `Gemfile` and `Gemfile.lock` among your sources. If you have a tarball, consider using
+  the [extract_file](https://github.com/openSUSE/obs-service-extract_file) service to extract them.
+  
+* If your tarball is created from a git repository using the [tar_scm](https://github.com/openSUSE/obs-service-tar_scm) source service, use the following parameters to tar_scm to extract the files:
+
+```xml
+  <param name="extract">Gemfile</param>
+  <param name="extract">Gemfile.lock</param>
+```
 
 * You need to mark the spec file with a special comment block, after the last sources.
 
@@ -24,24 +31,10 @@ Source2: somefile.tar.gz
 ### GEMS END
 ```
 
-* Once there is a tarball, you configure the bundle_gems service.
+* Once there is a tarball, you configure the bundle_gems service. Set it to disabled if you don't have admin access to the OBS instance, so that you can run it manually when dependencies change.
 
 ```xml
-<services>
-  <service name="tar_scm">
-    <param name="versionformat">15.0.git%cd.%h</param>
-    <param name="url">git://github.com/openSUSE/software-o-o.git</param>
-    <param name="scm">git</param>
-  </service>
-  <service name="bundle_gems"/>
-  <service name="download_files"/>
-  <service name="recompress">
-    <param name="compression">gz</param>
-    <param name="file">*.tar</param>
-  </service>
-  <service name="set_version">
-  </service>
-</services>
+<service name="bundle_gems" mode="disabled"/>
 ```
 
 * As after the `bundle_gems` service, the gems will be listed in the rpm spec as a URL, you can configure the `download_files` gem to retrieve them.
@@ -55,6 +48,35 @@ Source102: https://rubygems.org/downloads/actionpack-5.1.4.gem
 Source103: https://rubygems.org/downloads/actionview-5.1.4.gem
 Source104: https://rubygems.org/downloads/activejob-5.1.4.gem
 Source105: https://rubygems.org/downloads/activemodel-5.1.4.gem
+...
+```
+
+Configure a service to retrieve those files:
+
+```xml
+  <service name="download_files"/>
+```
+
+* The resulting `_service` file would look like:
+
+```xml
+<services>
+  <service name="tar_scm">
+    <param name="versionformat">15.0.git%cd.%h</param>
+    <param name="url">git://github.com/openSUSE/software-o-o.git</param>
+    <param name="scm">git</param>
+    <param name="extract">Gemfile</param>
+    <param name="extract">Gemfile.lock</param>
+  </service>
+  <service name="bundle_gems"/>
+  <service name="download_files"/>
+  <service name="recompress">
+    <param name="compression">gz</param>
+    <param name="file">*.tar</param>
+  </service>
+  <service name="set_version">
+  </service>
+</services>
 ```
 
 * Include Ruby and Bundler as requirement:
