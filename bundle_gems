@@ -85,7 +85,6 @@ ensure
 end
 
 # Now parse the spec file
-gem_sources = []
 gems_start = false
 new_spec_lines = []
 File.open(spec, 'r').each_line do |line|
