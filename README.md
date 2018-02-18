@@ -82,7 +82,7 @@ Configure a service to retrieve those files:
 * Include Ruby and Bundler as requirement:
 
 ```
-Source099: rubygem(%{rb_default_ruby_abi}:bundler)
+BuildRequires: rubygem(%{rb_default_ruby_abi}:bundler)
 ```
 
 * Install the gems in the vendor/cache in order to run tasks needed during build:
