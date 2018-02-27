@@ -46,7 +46,7 @@ end
 
 gem_file = 'Gemfile'
 unless File.exist?(gem_file)
-  log.fatal 'No Gemfile found'
+  logger.fatal 'No Gemfile found'
   exit(1)
 end
 logger.info "Using #{gem_file}"
