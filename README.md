@@ -12,6 +12,8 @@ Configured correctly it will:
 
 # Usage
 
+## spec strategy (default)
+
 * You need a `Gemfile` and `Gemfile.lock` among your sources. If you have a tarball, consider using
   the [extract_file](https://github.com/openSUSE/obs-service-extract_file) service to extract them.
   
@@ -100,6 +102,20 @@ $bundle config build.nokogiri --use-system-libraries
 $bundle --local --deployment --with production
 ```
 
+## cpio mode
+Compared to the default spec strategy mode, the cpio strategy mode makes use of bundler to create a ´``vendor.obscpio`` file.
+This has the advantage that you can also use gems from sources other than rubygems.org and nothing gets written to your spec file (you don't need the ```# GEMS START``` marker).
+Most of the description from the spec strategy mode (default) applies as well in this mode.
+However, you need to explictly set the strategy to `cpio` in your service file with:
+
+```xml
+<service name="bundle_gems" mode="disabled">
+  <param name="strategy">cpio</param>
+</service>
+```
+
+The vendor obscpio gets automatically unpacked during build. The gems are located under ``rpmbuild/SOURCES/vendor/bundle/vendor/cache`` in your build environment.
+
 # Authors
 
 * Duncan Mac-Vicar P. <dmacvicar@suse.de>
@@ -108,4 +124,3 @@ $bundle --local --deployment --with production
 # License
 
 The code is licensed under the GPLv2 or later.
-
