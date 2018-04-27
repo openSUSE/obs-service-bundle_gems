@@ -3,4 +3,7 @@
   <description>This service reads the Gemfile from the sources, figures out the whole chain
   of gem dependencies, and adds them to the source list so that another service like
   download_files can retrieve them.</description>
+  <parameter name="strategy">
+    <description>Choose the strategy this service runs in. Values: spec, cpio. Default: spec</description>
+  </parameter>
 </service>

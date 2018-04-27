@@ -18,6 +18,8 @@ require 'tempfile'
 require 'logger'
 require 'fileutils'
 require 'optparse'
+require 'fileutils'
+require 'open3'
 
 logger = Logger.new(STDOUT)
 logger.level = Logger::INFO
@@ -27,11 +29,16 @@ logger.formatter = proc do |severity, datetime, progname, msg|
   "[#{date_format}] #{severity.ljust(5)} (#{progname}): #{msg}\n"
 end
 
-options = {}
+options = { strategy: :spec }
 OptionParser.new do |opts|
   opts.banner = "Usage: #{ARGV[0]} [options]"
   opts.on('-oDIR', '--outdir=DIR', 'Output Directory') do |v|
     options[:outdir] = v
+  end
+  strategies = %i[cpio spec]
+  msg = "Choose the strategy the service runs in. Options: #{strategies.join(', ')}"
+  opts.on('--strategy=STRING', strategies, msg) do |v|
+    options[:strategy] = v
   end
 end.parse!
 
@@ -57,6 +64,55 @@ unless File.exist?(gem_file_lock)
   exit(1)
 end
 logger.info "Using #{gem_file_lock}"
+
+if options[:strategy] == :cpio
+  FileUtils.cp ['Gemfile', 'Gemfile.lock'], options[:outdir]
+  if File.file? 'vendor.obscpio'
+    logger.info 'Extracting vendor.obscpio...'
+    FileUtils.cp 'vendor.obscpio', options[:outdir]
+    Dir.chdir(options[:outdir]) do
+      stdout_and_stderr_str, status = Open3.capture2e(
+        'cpio -i --make-directories --format=newc < vendor.obscpio'
+      )
+      logger.info stdout_and_stderr_str
+      abort(stdout_and_stderr_str) unless status.success?
+    end
+  end
+
+  if ENV['OBS_SERVICE_BUNDLE_GEMS_MIRROR_URL']
+    Dir.chdir(options[:outdir]) do
+      mirror_url = ENV['OBS_SERVICE_BUNDLE_GEMS_MIRROR_URL']
+      stdout_and_stderr_str, status = Open3.capture2e("
+        bundle config --local mirror.http://rubygems.org #{mirror_url}")
+      logger.info stdout_and_stderr_str
+      abort(stdout_and_stderr_str) unless status.success?
+      stdout_and_stderr_str, status = Open3.capture2e(
+        "bundle config --local mirror.https://rubygems.org #{mirror_url}"
+      )
+      logger.info stdout_and_stderr_str
+      abort(stdout_and_stderr_str) unless status.success?
+    end
+  end
+
+  Dir.chdir(options[:outdir]) do
+    stdout_and_stderr_str, status = Open3.capture2e(
+      'bundle package --no-install --path vendor/bundle'
+    )
+    logger.info stdout_and_stderr_str
+    abort(stdout_and_stderr_str) unless status.success?
+    stdout_and_stderr_str, status = Open3.capture2e(
+      'find vendor/bundle/vendor/cache/ -depth -type f -print |' \
+      ' cpio --format=newc -o > vendor.obscpio'
+    )
+    abort(stdout_and_stderr_str) unless status.success?
+    logger.info stdout_and_stderr_str
+    FileUtils.rm ['Gemfile', 'Gemfile.lock']
+    FileUtils.remove_dir 'vendor'
+    FileUtils.remove_dir '.bundle'
+  end
+
+  exit 0
+end
 
 logger.info 'Resolving...'
 definition = Bundler::Definition.build('Gemfile', 'Gemfile.lock', nil)
