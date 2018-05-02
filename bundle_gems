@@ -51,28 +51,31 @@ unless spec
   exit(1)
 end
 
-gem_file = 'Gemfile'
-unless File.exist?(gem_file)
+# to match _service:bundle_gems:Gemfile and Gemfile
+gem_file = Dir.glob('*Gemfile').first.to_s
+if gem_file.empty?
   logger.fatal 'No Gemfile found'
   exit(1)
 end
 logger.info "Using #{gem_file}"
 
-gem_file_lock = 'Gemfile.lock'
-unless File.exist?(gem_file_lock)
+# to match _service:bundle_gems:Gemfile.lock and Gemfile.lock
+gem_file_lock = Dir.glob('*Gemfile.lock').first.to_s
+if gem_file_lock.empty?
   logger.fatal 'No Gemfile.lock found'
   exit(1)
 end
 logger.info "Using #{gem_file_lock}"
 
 if options[:strategy] == :cpio
-  FileUtils.cp ['Gemfile', 'Gemfile.lock'], options[:outdir]
-  if File.file? 'vendor.obscpio'
+  FileUtils.cp [gem_file, gem_file_lock], options[:outdir]
+  vendor = Dir.glob('*vendor.obscpio').first.to_s
+  unless vendor.empty?
     logger.info 'Extracting vendor.obscpio...'
-    FileUtils.cp 'vendor.obscpio', options[:outdir]
+    FileUtils.cp vendor, options[:outdir]
     Dir.chdir(options[:outdir]) do
       stdout_and_stderr_str, status = Open3.capture2e(
-        'cpio -i --make-directories --format=newc < vendor.obscpio'
+        "cpio -i --make-directories --format=newc < #{vendor}"
       )
       logger.info stdout_and_stderr_str
       abort(stdout_and_stderr_str) unless status.success?
@@ -106,7 +109,7 @@ if options[:strategy] == :cpio
     )
     abort(stdout_and_stderr_str) unless status.success?
     logger.info stdout_and_stderr_str
-    FileUtils.rm ['Gemfile', 'Gemfile.lock']
+    FileUtils.rm [gem_file, gem_file_lock]
     FileUtils.remove_dir 'vendor'
     FileUtils.remove_dir '.bundle'
   end
