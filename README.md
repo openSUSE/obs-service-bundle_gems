@@ -70,7 +70,7 @@ Configure a service to retrieve those files:
     <param name="extract">Gemfile</param>
     <param name="extract">Gemfile.lock</param>
   </service>
-  <service name="bundle_gems"/>
+  <service name="bundle_gems" mode="disabled"/>
   <service name="download_files"/>
   <service name="recompress">
     <param name="compression">gz</param>
