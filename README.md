@@ -103,7 +103,7 @@ $bundle --local --deployment --with production
 ```
 
 ## cpio mode
-Compared to the default spec strategy mode, the cpio strategy mode makes use of bundler to create a ´``vendor.obscpio`` file.
+Compared to the default spec strategy mode, the cpio strategy mode makes use of bundler to create a ``vendor.obscpio`` file.
 This has the advantage that you can also use gems from sources other than rubygems.org and nothing gets written to your spec file (you don't need the ```# GEMS START``` marker).
 Most of the description from the spec strategy mode (default) applies as well in this mode.
 However, you need to explictly set the strategy to `cpio` in your service file with:
