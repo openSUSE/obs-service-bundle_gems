@@ -68,7 +68,8 @@ end
 logger.info "Using #{gem_file_lock}"
 
 if options[:strategy] == :cpio
-  FileUtils.cp [gem_file, gem_file_lock], options[:outdir]
+  FileUtils.cp gem_file, File.join(outdir, 'Gemfile')
+  FileUtils.cp gem_file_lock, File.join(outdir, 'Gemfile.lock')
   vendor = Dir.glob('*vendor.obscpio').first.to_s
   unless vendor.empty?
     logger.info 'Extracting vendor.obscpio...'
@@ -99,18 +100,19 @@ if options[:strategy] == :cpio
 
   Dir.chdir(options[:outdir]) do
     stdout_and_stderr_str, status = Open3.capture2e(
-      'bundle package --no-install --path vendor/bundle'
+      'bundle package --no-install --path .'
     )
     logger.info stdout_and_stderr_str
     abort(stdout_and_stderr_str) unless status.success?
     stdout_and_stderr_str, status = Open3.capture2e(
-      'find vendor/bundle/vendor/cache/ -depth -type f -print |' \
+      'find vendor/cache/ -depth -type f -print |' \
       ' cpio --format=newc -o > vendor.obscpio'
     )
     abort(stdout_and_stderr_str) unless status.success?
     logger.info stdout_and_stderr_str
-    FileUtils.rm [gem_file, gem_file_lock]
+    FileUtils.rm ['Gemfile', 'Gemfile.lock']
     FileUtils.remove_dir 'vendor'
+    FileUtils.remove_dir 'ruby'
     FileUtils.remove_dir '.bundle'
   end
 

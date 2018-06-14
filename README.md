@@ -114,7 +114,7 @@ However, you need to explictly set the strategy to `cpio` in your service file w
 </service>
 ```
 
-The vendor obscpio gets automatically unpacked during build. The gems are located under ``rpmbuild/SOURCES/vendor/bundle/vendor/cache`` in your build environment.
+The vendor obscpio gets automatically unpacked during build. The gems are located under ``rpmbuild/SOURCES/vendor/cache`` in your build environment.
 
 # Authors
 
