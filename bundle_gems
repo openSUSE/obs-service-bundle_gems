@@ -45,12 +45,6 @@ end.parse!
 outdir = options[:outdir] || Dir.pwd
 bundled_gems = []
 
-spec = Dir['*.spec'].first
-unless spec
-  logger.fatal 'No spec found'
-  exit(1)
-end
-
 # to match _service:bundle_gems:Gemfile and Gemfile
 gem_file = Dir.glob('*Gemfile').first.to_s
 if gem_file.empty?
@@ -117,6 +111,12 @@ if options[:strategy] == :cpio
   end
 
   exit 0
+end
+
+spec = Dir['*.spec'].first
+unless spec
+  logger.fatal 'No spec found'
+  exit(1)
 end
 
 logger.info 'Resolving...'
