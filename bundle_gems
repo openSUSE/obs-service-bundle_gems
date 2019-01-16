@@ -94,7 +94,7 @@ if options[:strategy] == :cpio
 
   Dir.chdir(options[:outdir]) do
     stdout_and_stderr_str, status = Open3.capture2e(
-      'bundle package --no-install --path .'
+      'bundle package --no-install --all --path .'
     )
     logger.info stdout_and_stderr_str
     abort(stdout_and_stderr_str) unless status.success?
