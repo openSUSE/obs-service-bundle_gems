@@ -33,10 +33,10 @@ Source2: somefile.tar.gz
 ### GEMS END
 ```
 
-* Once there is a tarball, you configure the bundle_gems service. Set it to disabled if you don't have admin access to the OBS instance, so that you can run it manually when dependencies change.
+* Once there is a tarball, you configure the bundle_gems service.
 
 ```xml
-<service name="bundle_gems" mode="disabled"/>
+<service name="bundle_gems"/>
 ```
 
 * As after the `bundle_gems` service, the gems will be listed in the rpm spec as a URL, you can configure the `download_files` gem to retrieve them.
@@ -109,7 +109,7 @@ Most of the description from the spec strategy mode (default) applies as well in
 However, you need to explictly set the strategy to `cpio` in your service file with:
 
 ```xml
-<service name="bundle_gems" mode="disabled">
+<service name="bundle_gems">
   <param name="strategy">cpio</param>
 </service>
 ```
