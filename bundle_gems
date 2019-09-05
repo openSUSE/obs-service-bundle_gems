@@ -92,6 +92,12 @@ if options[:strategy] == :cpio
     end
   end
 
+  stdout_and_stderr_str, status = Open3.capture2e(
+    'bundle config force_ruby_platform'
+  )
+  logger.info stdout_and_stderr_str
+  abort(stdout_and_stderr_str) unless status.success?
+
   Dir.chdir(options[:outdir]) do
     stdout_and_stderr_str, status = Open3.capture2e(
       'bundle package --no-install --all --path . --verbose'
