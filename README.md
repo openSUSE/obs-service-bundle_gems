@@ -91,7 +91,7 @@ BuildRequires: rubygem(%{rb_default_ruby_abi}:bundler)
 
 ```
 mkdir -p vendor/cache
-cp %{_sourcedir}/*.gem vendor/cache
+cp %{_sourcedir}/vendor/cache/*.gem vendor/cache
 
 %build
 gem="gem.%{rb_default_ruby_suffix}"
