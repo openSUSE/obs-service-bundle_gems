@@ -11,15 +11,21 @@
 # of the License, or (at your option) any later version.
 # See http://www.gnu.org/licenses/gpl-2.0.html for full license text.
 #
-require 'bundler'
 require 'rubygems/package'
 require 'zlib'
 require 'tempfile'
 require 'logger'
 require 'fileutils'
 require 'optparse'
-require 'fileutils'
 require 'open3'
+
+# Work around BUNDLED WITH...
+current_directory = Dir.pwd
+tmp_directory = Dir.mktmpdir
+Dir.chdir(tmp_directory)
+require 'bundler'
+ENV['BUNDLER_VERSION'] = Bundler::VERSION
+Dir.chdir(current_directory)
 
 logger = Logger.new(STDOUT)
 logger.level = Logger::INFO
@@ -45,7 +51,7 @@ end.parse!
 outdir = options[:outdir] || Dir.pwd
 bundled_gems = []
 
-# to match _service:bundle_gems:Gemfile and Gemfile
+# to match _service:obs_scm:Gemfile and Gemfile
 gem_file = Dir.glob('*Gemfile').first.to_s
 if gem_file.empty?
   logger.fatal 'No Gemfile found'
@@ -53,7 +59,7 @@ if gem_file.empty?
 end
 logger.info "Using #{gem_file}"
 
-# to match _service:bundle_gems:Gemfile.lock and Gemfile.lock
+# to match _service:obs_scm:Gemfile.lock and Gemfile.lock
 gem_file_lock = Dir.glob('*Gemfile.lock').first.to_s
 if gem_file_lock.empty?
   logger.fatal 'No Gemfile.lock found'
