@@ -1,0 +1,33 @@
+name: Specs
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  spec:
+    runs-on: ubuntu-latest
+    name: spec
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.5
+          bundler-cache: true
+      - name: Prepare tests
+        run: |
+          cd spec
+          wget -nv https://raw.githubusercontent.com/openSUSE/open-build-service/master/src/api/Gemfile
+          wget -nv https://raw.githubusercontent.com/openSUSE/open-build-service/master/src/api/Gemfile.lock
+      - name: Test spec strategy
+        run: |
+          cd spec
+          ../bundle_gems
+      - name: Test cpio strategy
+        run: |
+          cd spec
+          mkdir outdir
+          ../bundle_gems --strategy=cpio -o outdir
