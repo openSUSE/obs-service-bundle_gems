@@ -167,6 +167,6 @@ File.open(spec, 'r').each_line do |line|
 end
 
 File.open(File.join(outdir, spec), 'w') do |f|
-  f.write(new_spec_lines.join(''))
+  f.write(new_spec_lines.join)
 end
 logger.info 'DONE'
