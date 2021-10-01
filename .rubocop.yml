@@ -1,2 +1,9 @@
-Metrics/LineLength:
-  Max: 100
+inherit_from: .rubocop_todo.yml
+
+AllCops:
+  NewCops: enable
+  UseCache: true
+  Exclude:
+    - 'spec/**/*'
+    - 'vendor/**/*'
+
