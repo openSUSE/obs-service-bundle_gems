@@ -27,14 +27,16 @@ require 'bundler'
 ENV['BUNDLER_VERSION'] = Bundler::VERSION
 Dir.chdir(current_directory)
 
-logger = Logger.new(STDOUT)
-logger.level = Logger::INFO
-logger.progname = File.basename($PROGRAM_NAME)
-logger.formatter = proc do |severity, datetime, progname, msg|
+# Setup logger
+@logger = Logger.new(STDOUT)
+@logger.level = Logger::INFO
+@logger.progname = File.basename($PROGRAM_NAME)
+@logger.formatter = proc do |severity, datetime, progname, msg|
   date_format = datetime.strftime('%Y-%m-%d %H:%M:%S')
   "[#{date_format}] #{severity.ljust(5)} (#{progname}): #{msg}\n"
 end
 
+# Parse options
 options = { strategy: :spec }
 OptionParser.new do |opts|
   opts.banner = "Usage: #{ARGV[0]} [options]"
@@ -51,71 +53,55 @@ end.parse!
 outdir = options[:outdir] || Dir.pwd
 bundled_gems = []
 
-# to match _service:obs_scm:Gemfile and Gemfile
+# Find Gemfile (matches _service:obs_scm:Gemfile and Gemfile)
 gem_file = Dir.glob('*Gemfile').first.to_s
 if gem_file.empty?
-  logger.fatal 'No Gemfile found'
+  @logger.fatal 'No Gemfile found'
   exit(1)
 end
-logger.info "Using #{gem_file}"
+@logger.info "Using #{gem_file}"
 
-# to match _service:obs_scm:Gemfile.lock and Gemfile.lock
+# Find Gemfile.lock (matches _service:obs_scm:Gemfile.lock and Gemfile.lock)
 gem_file_lock = Dir.glob('*Gemfile.lock').first.to_s
 if gem_file_lock.empty?
-  logger.fatal 'No Gemfile.lock found'
+  @logger.fatal 'No Gemfile.lock found'
   exit(1)
 end
-logger.info "Using #{gem_file_lock}"
+@logger.info "Using #{gem_file_lock}"
 
+def run_command(command:, environment: {})
+  stdout_and_stderr_str, status = Open3.capture2e(environment, command)
+  @logger.info stdout_and_stderr_str
+  abort(stdout_and_stderr_str) unless status.success?
+end
+
+# Execute with cpio strategy
 if options[:strategy] == :cpio
   FileUtils.cp gem_file, File.join(outdir, 'Gemfile')
   FileUtils.cp gem_file_lock, File.join(outdir, 'Gemfile.lock')
   vendor = Dir.glob('*vendor.obscpio').first.to_s
   unless vendor.empty?
-    logger.info 'Extracting vendor.obscpio...'
+    @logger.info 'Extracting vendor.obscpio...'
     FileUtils.cp vendor, options[:outdir]
     Dir.chdir(options[:outdir]) do
-      stdout_and_stderr_str, status = Open3.capture2e(
-        "cpio -i --make-directories --no-absolute-filenames --format=newc < #{vendor}"
-      )
-      logger.info stdout_and_stderr_str
-      abort(stdout_and_stderr_str) unless status.success?
+      run_command(command: "cpio -i --make-directories --no-absolute-filenames --format=newc < #{vendor}")
     end
   end
 
   if ENV['OBS_SERVICE_BUNDLE_GEMS_MIRROR_URL']
     Dir.chdir(options[:outdir]) do
       mirror_url = ENV['OBS_SERVICE_BUNDLE_GEMS_MIRROR_URL']
-      stdout_and_stderr_str, status = Open3.capture2e("
-        bundle config --local mirror.http://rubygems.org #{mirror_url}")
-      logger.info stdout_and_stderr_str
-      abort(stdout_and_stderr_str) unless status.success?
-      stdout_and_stderr_str, status = Open3.capture2e(
-        "bundle config --local mirror.https://rubygems.org #{mirror_url}"
-      )
-      logger.info stdout_and_stderr_str
-      abort(stdout_and_stderr_str) unless status.success?
+      # Set HTTP mirror
+      run_command(command: "bundle config --local mirror.http://rubygems.org #{mirror_url}")
+      # Set HTTPS mirror
+      run_command(command: "bundle config --local mirror.https://rubygems.org #{mirror_url}")
     end
   end
-
-  stdout_and_stderr_str, status = Open3.capture2e(
-    'bundle config force_ruby_platform true'
-  )
-  logger.info stdout_and_stderr_str
-  abort(stdout_and_stderr_str) unless status.success?
+  run_command(command: 'bundle config force_ruby_platform true')
 
   Dir.chdir(options[:outdir]) do
-    stdout_and_stderr_str, status = Open3.capture2e(
-      'bundle package --no-install --all --path . --verbose'
-    )
-    logger.info stdout_and_stderr_str
-    abort(stdout_and_stderr_str) unless status.success?
-    stdout_and_stderr_str, status = Open3.capture2e(
-      'find vendor/cache/ -depth -type f -print |' \
-      ' cpio --format=newc -o > vendor.obscpio'
-    )
-    abort(stdout_and_stderr_str) unless status.success?
-    logger.info stdout_and_stderr_str
+    run_command(command: 'bundle package --no-install --all --path . --verbose')
+    run_command(command: 'find vendor/cache/ -depth -type f -print |  cpio --format=newc -o > vendor.obscpio')
     FileUtils.rm ['Gemfile', 'Gemfile.lock']
     FileUtils.remove_dir 'vendor'
     FileUtils.remove_dir 'ruby'
@@ -125,18 +111,19 @@ if options[:strategy] == :cpio
   exit 0
 end
 
+# Execute with spec strategy
 spec = Dir['*.spec'].first
 unless spec
-  logger.fatal 'No spec found'
+  @logger.fatal 'No spec found'
   exit(1)
 end
 
-logger.info 'Resolving...'
+@logger.info 'Resolving...'
 definition = Bundler::Definition.build(gem_file, gem_file_lock, nil)
 bundled_gems.concat definition.resolve.to_a.sort_by(&:to_s)
-logger.info "  #{bundled_gems.size} gems..."
+@logger.info "  #{bundled_gems.size} gems..."
 
-logger.info "Updating #{spec}"
+@logger.info "Updating #{spec}"
 # Now parse the spec file
 gems_start = false
 new_spec_lines = []
@@ -169,4 +156,4 @@ end
 File.open(File.join(outdir, spec), 'w') do |f|
   f.write(new_spec_lines.join)
 end
-logger.info 'DONE'
+@logger.info 'DONE'
