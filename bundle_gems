@@ -19,14 +19,6 @@ require 'fileutils'
 require 'optparse'
 require 'open3'
 
-# Work around BUNDLED WITH...
-current_directory = Dir.pwd
-tmp_directory = Dir.mktmpdir
-Dir.chdir(tmp_directory)
-require 'bundler'
-ENV['BUNDLER_VERSION'] = Bundler::VERSION
-Dir.chdir(current_directory)
-
 # Setup logger
 @logger = Logger.new(STDOUT)
 @logger.level = Logger::INFO
@@ -51,7 +43,6 @@ OptionParser.new do |opts|
 end.parse!
 
 outdir = options[:outdir] || Dir.pwd
-bundled_gems = []
 
 # Find Gemfile (matches _service:obs_scm:Gemfile and Gemfile)
 gem_file = Dir.glob('*Gemfile').first.to_s
@@ -69,10 +60,54 @@ if gem_file_lock.empty?
 end
 @logger.info "Using #{gem_file_lock}"
 
+# Get the bundler version defined in gem_file_lock...
+next_line = false
+File.readlines(gem_file_lock).each do |line|
+  @bundledwith = line if next_line
+  next_line = false if next_line
+  next_line = true if line.start_with?('BUNDLED WITH')
+end
+@bundledwith = @bundledwith.lstrip.chomp if @bundledwith
+
 def run_command(command:, environment: {})
   stdout_and_stderr_str, status = Open3.capture2e(environment, command)
   @logger.info stdout_and_stderr_str
   abort(stdout_and_stderr_str) unless status.success?
+end
+
+def bundle(command:)
+  if @bundler_directory
+    bundler_bin = "#{@bundler_directory}/bin/bundle _#{Bundler::VERSION}_"
+    run_command(command: "#{bundler_bin} #{command}", environment: { 'GEM_HOME' => @bundler_directory })
+  else
+    run_command(command: "bundle #{command}")
+  end
+end
+
+def install_bundler(version:)
+  @logger.info "Installing bundler version #{version}"
+  bundler_directory = Dir.mktmpdir(nil, Dir.pwd)
+
+  Dir.chdir(bundler_directory) do
+    run_command(command: "gem install bundler -v #{version}", environment: { 'GEM_HOME' => bundler_directory })
+    # adapt LOAD_PATH, gosh this is hacky...
+    bundler_lib_path = Dir.glob('gems/bundler-*/lib').first
+    $LOAD_PATH.unshift("#{bundler_directory}/#{bundler_lib_path}")
+    require 'bundler'
+  end
+
+  ENV['GEM_HOME'] = bundler_directory
+
+  bundler_directory
+end
+
+# Install and require the right bundler version
+if @bundledwith
+  @bundler_directory = install_bundler(version: @bundledwith)
+  @logger.info "Using bundler (#{Bundler::VERSION}) defined by 'BUNDLED WITH' in #{gem_file_lock}..."
+else
+  require 'bundler'
+  @logger.info "Using system bundler (#{Bundler::VERSION}), no 'BUNDLED WITH' in #{gem_file_lock}..."
 end
 
 # Execute with cpio strategy
@@ -88,24 +123,22 @@ if options[:strategy] == :cpio
     end
   end
 
-  if ENV['OBS_SERVICE_BUNDLE_GEMS_MIRROR_URL']
-    Dir.chdir(options[:outdir]) do
+  Dir.chdir(options[:outdir]) do
+    if ENV['OBS_SERVICE_BUNDLE_GEMS_MIRROR_URL']
       mirror_url = ENV['OBS_SERVICE_BUNDLE_GEMS_MIRROR_URL']
       # Set HTTP mirror
-      run_command(command: "bundle config --local mirror.http://rubygems.org #{mirror_url}")
+      bundle(command: "config --local mirror.http://rubygems.org #{mirror_url}")
       # Set HTTPS mirror
-      run_command(command: "bundle config --local mirror.https://rubygems.org #{mirror_url}")
+      bundle(command: "config --local mirror.https://rubygems.org #{mirror_url}")
     end
-  end
-  run_command(command: 'bundle config force_ruby_platform true')
-
-  Dir.chdir(options[:outdir]) do
-    run_command(command: 'bundle package --no-install --all --path . --verbose')
+    bundle(command: 'config force_ruby_platform true')
+    bundle(command: 'package --no-install --all --path . --verbose')
     run_command(command: 'find vendor/cache/ -depth -type f -print |  cpio --format=newc -o > vendor.obscpio')
     FileUtils.rm ['Gemfile', 'Gemfile.lock']
     FileUtils.remove_dir 'vendor'
     FileUtils.remove_dir 'ruby'
     FileUtils.remove_dir '.bundle'
+    FileUtils.remove_dir @bundler_directory
   end
 
   exit 0
@@ -120,7 +153,7 @@ end
 
 @logger.info 'Resolving...'
 definition = Bundler::Definition.build(gem_file, gem_file_lock, nil)
-bundled_gems.concat definition.resolve.to_a.sort_by(&:to_s)
+bundled_gems = definition.resolve.to_a.sort_by(&:to_s)
 @logger.info "  #{bundled_gems.size} gems..."
 
 @logger.info "Updating #{spec}"
@@ -156,4 +189,5 @@ end
 File.open(File.join(outdir, spec), 'w') do |f|
   f.write(new_spec_lines.join)
 end
+FileUtils.remove_dir @bundler_directory
 @logger.info 'DONE'
