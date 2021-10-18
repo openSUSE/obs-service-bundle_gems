@@ -89,7 +89,7 @@ def install_bundler(version:)
   bundler_directory = Dir.mktmpdir(nil, Dir.pwd)
 
   Dir.chdir(bundler_directory) do
-    run_command(command: "gem install bundler -v #{version}", environment: { 'GEM_HOME' => bundler_directory })
+    run_command(command: "gem install --no-format-executable bundler -v #{version}", environment: { 'GEM_HOME' => bundler_directory })
     # adapt LOAD_PATH, gosh this is hacky...
     bundler_lib_path = Dir.glob('gems/bundler-*/lib').first
     $LOAD_PATH.unshift("#{bundler_directory}/#{bundler_lib_path}")
