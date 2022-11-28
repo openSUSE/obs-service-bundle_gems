@@ -33,3 +33,12 @@ jobs:
           mkdir outdir
           ../bundle_gems --strategy=cpio -o outdir
           file outdir/vendor.obscpio
+      - name: Test cpio strategy and ruby-version
+        run: |
+          sudo apt-get update
+          sudo apt-get install autoconf bison patch build-essential libssl-dev libyaml-dev libreadline-dev \
+            zlib1g-dev libgmp-dev libncurses-dev libffi-dev libgdbm-dev libdb-dev uuid-dev rbenv ruby-build
+          cd spec
+          mkdir outdir
+          ../bundle_gems --strategy=cpio --ruby-version=2.7.6 -o outdir
+          file outdir/vendor.obscpio
