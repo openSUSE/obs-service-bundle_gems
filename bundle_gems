@@ -69,7 +69,7 @@ if rversion && options[:strategy] == :cpio
     @logger.fatal 'rbenv is either not installed or not in PATH'
     exit(1)
   end
-  
+
   @logger.info "Installing Ruby #{rversion} using rbenv"
   run_command(command: "rbenv install --skip-existing \"#{rversion}\"")
 
