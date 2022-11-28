@@ -116,6 +116,18 @@ However, you need to explictly set the strategy to `cpio` in your service file w
 
 The vendor obscpio gets automatically unpacked during build. The gems are located under ``rpmbuild/SOURCES/vendor/cache`` in your build environment.
 
+### Specific Ruby interpreter version (using rbenv)
+You can choose if needed the ruby version used to install the gems packed in the ``vendor.obscpio`` file:
+```xml
+<service name="bundle_gems">
+  <param name="strategy">cpio</param>
+  <param name="ruby-version">2.7.6</param>
+</service>
+```
+
+It can be useful to build gems that have strong dependencies on the ruby interpreter (ie ``nokogiri``). The specified version is installed by ``rbenv`` (if not already present).
+``rbenv`` and ``ruby-build`` are required.
+
 # Authors
 
 * Duncan Mac-Vicar P. <dmacvicar@suse.de>
