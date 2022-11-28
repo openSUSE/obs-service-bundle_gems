@@ -6,4 +6,7 @@
   <parameter name="strategy">
     <description>Choose the strategy this service runs in. Values: spec, cpio. Default: spec</description>
   </parameter>
+  <parameter name="ruby-version">
+    <description>Choose the Ruby version used to install gems. rbenv is used to install/run ruby, only usable with "cpio" strategy.</description>
+  </parameter>
 </service>
