@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 2.5
+          ruby-version: 2.7
           bundler-cache: true
       - name: Prepare tests
         run: |
@@ -33,3 +33,17 @@ jobs:
           mkdir outdir
           ../bundle_gems --strategy=cpio -o outdir
           file outdir/vendor.obscpio
+      - name: Install rbenv and ruby-build
+        run: |
+          sudo apt-get update
+          sudo apt-get install autoconf bison patch build-essential libssl-dev libyaml-dev libreadline-dev \
+            zlib1g-dev libgmp-dev libncurses-dev libffi-dev libgdbm-dev libdb-dev uuid-dev rbenv wget jq
+          TAG=$(wget -q -O- https://api.github.com/repos/rbenv/ruby-build/releases/latest | jq -r '.tag_name')
+          mkdir -p "$(rbenv root)/plugins/ruby-build"
+          wget -q -O- https://github.com/rbenv/ruby-build/archive/refs/tags/${TAG}.tar.gz | tar xzf - -C "$(rbenv root)/plugins/ruby-build" --strip-components=1
+      - name: Test cpio strategy and ruby-version
+        run: |
+          cd spec
+          mkdir outdir2
+          ../bundle_gems --strategy=cpio --ruby-version=2.7.7 -o outdir2
+          file outdir2/vendor.obscpio
